@@ -129,5 +129,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v1.0.0 // indirect
 )
-
-replace github.com/caddy-dns/mijnhost => github.com/pbergman/caddy-dns-mijnhost v0.0.0-20251108232112-5a6928fd9736
