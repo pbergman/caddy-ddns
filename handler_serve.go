@@ -133,7 +133,7 @@ func (h *Handler) authorize(request *http.Request) bool {
 
 func getHosts(query url.Values) ([]string, []ReturnCode) {
 
-	var hosts = strings.Split(",", query.Get("hostname"))
+	var hosts = strings.Split(query.Get("hostname"), ",")
 	var results = make([]ReturnCode, len(hosts))
 
 	for idx, _ := range hosts {
