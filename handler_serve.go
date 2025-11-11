@@ -105,7 +105,7 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request,
 		}
 	}
 
-	if hasUpdated {
+	if hasUpdated || len(queue) == 0 {
 		return WriterReturnCode(response, &ip, results...)
 	}
 
