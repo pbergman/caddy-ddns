@@ -52,7 +52,7 @@ type Handler struct {
 
 func init() {
 	httpcaddyfile.RegisterHandlerDirective("ddns", parseCaddyfile)
-	httpcaddyfile.RegisterDirectiveOrder("ddns", "before", "basic_auth")
+	httpcaddyfile.RegisterDirectiveOrder("ddns", "after", "route")
 	caddy.RegisterModule(Handler{})
 }
 
