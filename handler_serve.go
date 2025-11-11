@@ -133,20 +133,11 @@ func (h *Handler) authorize(request *http.Request) bool {
 
 func getHosts(query url.Values) ([]string, []ReturnCode) {
 
-	var results = []ReturnCode{NoChange}
-	var hosts = []string{query.Get("hostname")}
+	var hosts = strings.Split(",", query.Get("hostname"))
+	var results = make([]ReturnCode, len(hosts))
 
-	for {
-
-		idx := strings.Index(hosts[0], ",")
-
-		if idx == -1 {
-			break
-		}
-
-		hosts = append(hosts, hosts[0][idx+1:])
-		hosts[0] = hosts[0][:idx]
-		results = append(results, NoChange)
+	for idx, _ := range hosts {
+		results[idx] = NoChange
 	}
 
 	return hosts, results
