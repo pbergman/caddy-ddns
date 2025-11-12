@@ -18,7 +18,7 @@ When running behind a proxy, the client’s remote address may belong to the pro
 For example, if you are running behind a local proxy:
 
 ```caddyfile
-ddns /nuc/update {
+ddns /nic/update {
     trusted_remotes 127.0.0.1/8
     ...
 }
@@ -39,7 +39,7 @@ example.com {
         dns mijnhost <APIKEY>
     }
 
-    ddns /nuc/update {
+    ddns /nic/update {
         users {
             foo bar
         }
@@ -54,14 +54,14 @@ example.com {
 With this configuration:
 
 ```bash
-~/ curl 'https://example.com/nuc/update?hostname=foo.example.com&myip=127.0.0.1'
+~/ curl 'https://example.com/nic/update?hostname=foo.example.com&myip=127.0.0.1'
 badauth
 ```
 
 When providing valid credentials:
 
 ```bash
-~/ curl 'https://foo:bar@example.com/nuc/update?hostname=foo.example.com&myip=127.0.0.1'
+~/ curl 'https://foo:bar@example.com/nic/update?hostname=foo.example.com&myip=127.0.0.1'
 nochg 127.0.0.1
 ```
 
@@ -95,7 +95,7 @@ example.com {
         dns mijnhost <APIKEY>
     }
 
-    ddns /nuc/update {
+    ddns /nic/update {
         users {
             foo bar
         }
@@ -116,7 +116,7 @@ example.com {
         dns mijnhost <APIKEY>
     }
 
-    ddns /nuc/update {
+    ddns /nic/update {
         providers {
             ddns.static_zones {
                 provider mijnhost APIKEY
