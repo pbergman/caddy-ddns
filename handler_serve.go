@@ -20,35 +20,38 @@ import (
 //	https://help.dyn.com/return-codes.html
 func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request, next caddyhttp.Handler) error {
 
+	h.logger.Debug(
+		fmt.Sprintf("%s %s", request.Method, request.RequestURI),
+	)
+
 	if false == h.authorize(request) {
-		return WriterReturnCode(response, nil, BadAuthentication)
+		return h.writeReturnCode(response, nil, nil, BadAuthentication)
 	}
 
 	var query = request.URL.Query()
 
 	if false == query.Has("hostname") {
 		// If no hostnames were specified, **notfqdn** will be returned once.
-		return WriterReturnCode(response, nil, NotFullyQualifiedDomainName)
+		return h.writeReturnCode(response, nil, nil, NotFullyQualifiedDomainName)
 	}
 
 	var ip netip.Addr
 	var err error
+	var hosts, results = getHosts(query)
+	var lock = NewSemaphore(5)
 
 	if ip, err = getIp(query, request.RemoteAddr, request.Header, h); err != nil {
-		if x := WriterReturnCode(response, nil, DNSError); x != nil {
+		if x := h.writeReturnCode(response, nil, hosts, h.setReturnCodes(results, DNSError)...); x != nil {
 			return errors.Join(err, x)
 		}
 		return err
 	}
 
-	var hosts, results = getHosts(query)
-	var lock = NewSemaphore(5)
-
 	h.logger.Info(
 		"ddns update request",
 		zap.String("ip", ip.String()),
 		zap.Strings("hosts", hosts),
-		zap.String("user-agent", request.Header.Get("user-agent")),
+		zap.String("user agent", request.Header.Get("user-agent")),
 	)
 
 	var zones = getAvailableZones(request.Context(), h.providers, lock, h.logger)
@@ -86,53 +89,44 @@ func (h *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request,
 
 	lock.Wait()
 
-	var hasUpdated = false
-
 	for i, c := 0, len(queue); i < c; i++ {
 		for zone, records := range queue[i].items {
 			if queue[i].errors[zone] != nil {
-				// for now, set to "no change" and later of nothing else
-				// is updated, we can safely return dnserr
-				h.setResponses(hosts, &results, zone, records, NoChange)
-				continue
-			}
-
-			hasUpdated = true
-
-			if len(queue[i].result[zone]) > 0 {
-				h.setResponses(hosts, &results, zone, queue[i].result[zone], Good)
+				h.logger.Error("setting records failed", zap.String("zone", zone), zap.Error(queue[i].errors[zone]))
+				h.setReturnCodesForItems(&results, records, DNSError, zone, hosts)
+			} else if len(queue[i].result[zone]) > 0 {
+				h.setReturnCodesForItems(&results, records, Good, zone, hosts)
 			}
 		}
 	}
 
-	if hasUpdated || (len(queue) == 0 && len(results) > 0) {
-		return WriterReturnCode(response, &ip, results...)
-	}
-
-	return WriterReturnCode(response, nil, DNSError)
+	return h.writeReturnCode(response, &ip, hosts, results...)
 }
 
 func (h *Handler) authorize(request *http.Request) bool {
 
 	if len(h.Users) == 0 {
+		h.logger.Debug("authorisation ok, no user configured")
 		return true
 	}
 
 	user, passwd, ok := request.BasicAuth()
 
 	if !ok {
+		h.logger.Debug("authorisation failed, no or invalid authorization header")
 		return false
 	}
 
 	if v, ok := h.Users[user]; !ok || v != passwd {
+		h.logger.Debug("authorisation failed, user not exists or password invalid")
 		return false
 	}
 
+	h.logger.Debug("authorisation ok")
 	return true
 }
 
 func getHosts(query url.Values) ([]string, []ReturnCode) {
-
 	var hosts = strings.Split(query.Get("hostname"), ",")
 	var results = make([]ReturnCode, len(hosts))
 
@@ -197,12 +191,4 @@ hostnames:
 	}
 
 	return updates
-}
-
-func (h *Handler) setResponses(hosts []string, result *[]ReturnCode, zone string, items []libdns.Record, value ReturnCode) {
-	for _, item := range items {
-		if x := getHostIdx(hosts, item.RR().Name, zone); x != -1 {
-			(*result)[x] = value
-		}
-	}
 }
